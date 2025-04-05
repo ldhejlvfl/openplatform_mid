@@ -43,7 +43,7 @@ def get_and_save_games(date_obj):
     os.makedirs(folder_path, exist_ok=True)
 
     try:
-        scoreboard = ScoreboardV2(game_date=date_str_display)
+        scoreboard = ScoreboardV2(game_date=date_str_display, timeout=60)
         games = scoreboard.get_normalized_dict()["GameHeader"]
         
         if not games:  # 檢查今天是否有比賽
