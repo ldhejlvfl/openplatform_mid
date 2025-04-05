@@ -27,8 +27,8 @@ jobs:
 
       - name: Commit games stats CSVs to repo
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "ldhejlvfl"
+          git config --global user.email "3314tony@gmail.com"
           git add game_stats/*
           git commit -m "Add latest NBA game stats" || echo "No changes to commit"
           git push
