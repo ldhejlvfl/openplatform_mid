@@ -43,7 +43,7 @@ def get_and_save_games(date_obj):
     os.makedirs(folder_path, exist_ok=True)
 
     try:
-        scoreboard = ScoreboardV2(game_date=date_str_display, timeout=60)
+        scoreboard = ScoreboardV2(game_date=date_str_display, timeout=120)
         games = scoreboard.get_normalized_dict()["GameHeader"]
         
         if not games:  # 檢查今天是否有比賽
@@ -96,4 +96,5 @@ yesterday_us = today_us - timedelta(days=1)
 success = get_and_save_games(today_us)
 if not success:
     print("今天沒有比賽結果，改抓昨天")
+    time.sleep(30) # 在api requests間睡30秒
     get_and_save_games(yesterday_us)
