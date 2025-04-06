@@ -1,4 +1,4 @@
-name: nba games stats
+name: run api and static file
 
 on:
   schedule:
