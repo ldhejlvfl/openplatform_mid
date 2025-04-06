@@ -1,103 +1,56 @@
-from nba_api.stats.endpoints import ScoreboardV2, BoxScoreTraditionalV2
-from datetime import datetime, timedelta
-import pytz
+import requests
 import csv
-import os
-import time
-import random
 
-def get_player_stats(game_id):
-    # 隨機設置延遲時間，避免過於頻繁地調用API，減少被封鎖風險
-    time.sleep(random.uniform(1, 3))  
-    try:
-        boxscore = BoxScoreTraditionalV2(game_id=game_id)
-        players = boxscore.player_stats.get_dict()["data"]
-        headers = boxscore.player_stats.get_dict()["headers"]
-        return headers, players
-    except Exception as e:
-        print(f"錯誤：無法獲取 {game_id} 的球員統計數據: {e}")
-        return None, None
+# API URL 與參數
+url = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001"
+params = {
+    "Authorization": "CWA-94A74475-F826-4F56-A8E4-4E36E642C516"
+}
 
-def save_game_to_api_csv(file_path, game_id, home_name, visitor_name, home_pts, visitor_pts, headers, players):
-    # 開啟或創建 CSV 檔案，並將資料追加到檔案
-    with open(file_path, mode="a", newline='', encoding="utf-8") as f:
-        writer = csv.writer(f)
-        # 寫入比數作為標題
-        writer.writerow([f"【{visitor_name} {visitor_pts} - {home_pts} {home_name}】", f"GameID: {game_id}"])
-        writer.writerow([])  # 空行
-        # 寫入表頭與內容
-        writer.writerow(headers)
-        for row in players:
-            writer.writerow(row)
+# 元素轉中文
+element_map = {
+    "Wx": "天氣現象",
+    "PoP": "降雨機率",
+    "MinT": "最低氣溫",
+    "MaxT": "最高氣溫",
+    "CI": "舒適度"
+}
 
-    print(f"saved：{file_path}")
+# 縣市北到南排序
+city_order = [
+    "基隆市", "臺北市", "新北市", "桃園市", "新竹市", "新竹縣",
+    "宜蘭縣", "苗栗縣", "臺中市", "彰化縣", "南投縣", "雲林縣",
+    "嘉義市", "嘉義縣", "臺南市", "高雄市", "屏東縣",
+    "花蓮縣", "臺東縣", "澎湖縣", "金門縣", "連江縣"
+]
 
-def get_and_save_games(date_obj, file_path):
-    date_str_display = date_obj.strftime('%m/%d/%Y')
-    print(f"\n嘗試抓取美國時間 {date_str_display} 的比賽...")
+# 取得資料
+response = requests.get(url, params=params)
+data = response.json()
 
-    try:
-        scoreboard = ScoreboardV2(game_date=date_str_display, timeout=30)
-        games = scoreboard.get_normalized_dict()["GameHeader"]
-        
-        if not games:  # 檢查今天是否有比賽
-            print(f"今天 {date_str_display} 沒有比賽")
-            return False
+# 收集資料
+raw_data = []
+locations = data['records']['location']
+for location in locations:
+    location_name = location['locationName']
+    for weather in location['weatherElement']:
+        element_name = element_map.get(weather['elementName'], weather['elementName'])
+        for time_data in weather['time'][:2]:
+            start = "'" + time_data['startTime']  # 加上 ' 避免 Excel 自動轉格式
+            end = "'" + time_data['endTime']
+            value = time_data['parameter']['parameterName']
+            raw_data.append([location_name, element_name, start, end, value])
 
-        linescores = scoreboard.get_normalized_dict()["LineScore"]
+# 排序
+sorted_data = sorted(
+    raw_data,
+    key=lambda x: city_order.index(x[0]) if x[0] in city_order else 999
+)
 
-        success = False
+# 寫入 CSV
+with open('api.csv', 'w', encoding='utf-8-sig', newline='') as f:
+    writer = csv.writer(f)
+    writer.writerow(["地點", "氣象項目", "開始時間", "結束時間", "數值"])
+    writer.writerows(sorted_data)
 
-        for game in games:
-            game_id = game['GAME_ID']
-            home_team = game['HOME_TEAM_ID']
-            visitor_team = game['VISITOR_TEAM_ID']
-
-            try:
-                home_score = next(item for item in linescores if item['TEAM_ID'] == home_team)
-                visitor_score = next(item for item in linescores if item['TEAM_ID'] == visitor_team)
-
-                home_name = home_score['TEAM_ABBREVIATION']
-                visitor_name = visitor_score['TEAM_ABBREVIATION']
-                home_pts = home_score['PTS']
-                visitor_pts = visitor_score['PTS']
-
-                # 檢查比數是否為 None，表示比賽尚未結束
-                if home_pts is None or visitor_pts is None:
-                    print(f"比賽 {visitor_name} vs {home_name} 尚未結束，跳過")
-                    continue  # 跳過這場比賽
-
-                print(f"{visitor_name} {visitor_pts} - {home_pts} {home_name}")
-
-                headers, players = get_player_stats(game_id)
-                if headers and players:
-                    save_game_to_api_csv(file_path, game_id, home_name, visitor_name, home_pts, visitor_pts, headers, players)
-                    success = True
-
-            except StopIteration:
-                continue
-    except Exception as e:
-        print(f"錯誤：無法獲取 {date_str_display} 的比賽資料: {e}")
-        return False
-
-    return success
-
-# 判斷今天或昨天
-us_eastern = pytz.timezone("US/Eastern")
-today_us = datetime.now(us_eastern)
-yesterday_us = today_us - timedelta(days=1)
-
-# 設定存儲所有比賽數據的 CSV 檔案
-api_csv_file = "api.csv"
-
-# 確保 CSV 檔案存在，並寫入表頭
-if not os.path.exists(api_csv_file):
-    with open(api_csv_file, mode="w", newline='', encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["比賽結果", "GameID"])
-        writer.writerow([])  # 空行
-
-success = get_and_save_games(today_us, api_csv_file)
-if not success:
-    print("今天沒有比賽結果，改抓昨天")
-    get_and_save_games(yesterday_us, api_csv_file)
+print("已將資料存入api.csv")
