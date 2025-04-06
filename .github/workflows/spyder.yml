@@ -2,7 +2,7 @@ name: run api and static file
 
 on:
   schedule:
-    - cron: "0 14 * * *"  # 每天 UTC 14:00 執行
+    - cron: "0 16 * * *"  # 台灣時間 00:00（UTC+8）
   workflow_dispatch:  # 手動觸發
 
 jobs:
@@ -20,7 +20,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install nba_api requests numpy pandas pytz beautifulsoup4 pandas lxml
+          pip install requests beautifulsoup4 pandas lxml
 
       - name: Run api.py to generate api.csv
         run: | 
@@ -34,7 +34,7 @@ jobs:
         run: |
           git config --global user.name "ldhejlvfl"
           git config --global user.email "3314tony@gmail.com"
-          git add game_stats/*
+          git add api.csv # 將 api.csv 加入 commit
           git add static.csv # 將 static.csv 加入 commit
           git commit -m "Add api and static data" || echo "No changes to commit"
           git push
