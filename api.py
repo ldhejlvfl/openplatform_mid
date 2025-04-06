@@ -18,11 +18,9 @@ def get_player_stats(game_id):
         print(f"錯誤：無法獲取 {game_id} 的球員統計數據: {e}")
         return None, None
 
-def save_game_csv(folder_path, game_id, home_name, visitor_name, home_pts, visitor_pts, headers, players):
-    filename = f"{visitor_name}_vs_{home_name}.csv"
-    file_path = os.path.join(folder_path, filename)
-
-    with open(file_path, mode="w", newline='', encoding="utf-8") as f:
+def save_game_to_api_csv(file_path, game_id, home_name, visitor_name, home_pts, visitor_pts, headers, players):
+    # 開啟或創建 CSV 檔案，並將資料追加到檔案
+    with open(file_path, mode="a", newline='', encoding="utf-8") as f:
         writer = csv.writer(f)
         # 寫入比數作為標題
         writer.writerow([f"【{visitor_name} {visitor_pts} - {home_pts} {home_name}】", f"GameID: {game_id}"])
@@ -34,13 +32,9 @@ def save_game_csv(folder_path, game_id, home_name, visitor_name, home_pts, visit
 
     print(f"saved：{file_path}")
 
-def get_and_save_games(date_obj):
+def get_and_save_games(date_obj, file_path):
     date_str_display = date_obj.strftime('%m/%d/%Y')
-    folder_name = date_obj.strftime('%Y%m%d')
     print(f"\n嘗試抓取美國時間 {date_str_display} 的比賽...")
-
-    folder_path = os.path.join("game_stats", folder_name)
-    os.makedirs(folder_path, exist_ok=True)
 
     try:
         scoreboard = ScoreboardV2(game_date=date_str_display, timeout=30)
@@ -77,7 +71,7 @@ def get_and_save_games(date_obj):
 
                 headers, players = get_player_stats(game_id)
                 if headers and players:
-                    save_game_csv(folder_path, game_id, home_name, visitor_name, home_pts, visitor_pts, headers, players)
+                    save_game_to_api_csv(file_path, game_id, home_name, visitor_name, home_pts, visitor_pts, headers, players)
                     success = True
 
             except StopIteration:
@@ -93,8 +87,17 @@ us_eastern = pytz.timezone("US/Eastern")
 today_us = datetime.now(us_eastern)
 yesterday_us = today_us - timedelta(days=1)
 
-success = get_and_save_games(today_us)
+# 設定存儲所有比賽數據的 CSV 檔案
+api_csv_file = "api.csv"
+
+# 確保 CSV 檔案存在，並寫入表頭
+if not os.path.exists(api_csv_file):
+    with open(api_csv_file, mode="w", newline='', encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["比賽結果", "GameID"])
+        writer.writerow([])  # 空行
+
+success = get_and_save_games(today_us, api_csv_file)
 if not success:
     print("今天沒有比賽結果，改抓昨天")
-    # time.sleep(30) # 在api requests間睡30秒
-    get_and_save_games(yesterday_us)
+    get_and_save_games(yesterday_us, api_csv_file)
