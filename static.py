@@ -40,6 +40,7 @@ df = pd.DataFrame(data, columns=["排名", "歌手", "歌名", "在榜單天數"
 df.to_csv("static.csv", index=False, encoding="utf-8")
 
 # print(str(data).encode('utf-8').decode('utf-8'))
+print("已將資料存入static.csv")
 
 
 
