@@ -20,15 +20,21 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install nba_api requests numpy pandas pytz
+          pip install nba_api requests numpy pandas pytz beautifulsoup4 pandas lxml
 
-      - name: Run the NBA spyder
-        run: python api.py
+      - name: Run api.py to generate api.csv
+        run: | 
+          python api.py
+
+      - name: Run static.py to generate static.csv
+        run: |
+          python static.py
 
       - name: Commit games stats CSVs to repo
         run: |
           git config --global user.name "ldhejlvfl"
           git config --global user.email "3314tony@gmail.com"
           git add game_stats/*
-          git commit -m "Add latest NBA game stats" || echo "No changes to commit"
+          git add static.csv # 將 static.csv 加入 commit
+          git commit -m "Add api and static data" || echo "No changes to commit"
           git push
